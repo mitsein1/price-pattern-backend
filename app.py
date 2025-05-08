@@ -12,9 +12,9 @@ def index():
 @app.route('/price/<ticker>', methods=['GET'])
 def get_price(ticker):
     start_date = request.args.get('start_date', '2021-01-01')
-    end_date = request.args.get('end_date', '2025-01-01')
-    data = data_retrieval.get_historical_data(ticker, start_date, end_date)
-    return jsonify(data)
+    end_date   = request.args.get('end_date',   '2025-01-01')
+    records = data_retrieval.get_historical_data(ticker, start_date, end_date)
+    return jsonify(records)
 
 @app.route('/analysis/<ticker>', methods=['GET'])
 def analyze_price(ticker):
