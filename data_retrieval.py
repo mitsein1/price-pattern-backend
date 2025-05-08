@@ -11,3 +11,17 @@ def get_historical_data(ticker, start_date, end_date):
     # Crea una lista di dizionari
     records = df.to_dict(orient='records')
     return records
+    
+def get_seasonal_window(ticker, start_md, end_md, years_back=None):
+    """
+    start_md, end_md = 'MM-DD' strings
+    years_back = numero di anni da includere (oppure None = tutti)
+    """
+    df = yf.Ticker(ticker).history(period='max')[['Close']].reset_index()
+    df['md'] = df['Date'].dt.strftime('%m-%d')
+    # filtra le md tra start_md e end_md
+    subset = df[(df['md'] >= start_md) & (df['md'] <= end_md)]
+    if years_back:
+        recent = subset['Date'].dt.year.max()
+        subset = subset[subset['Date'].dt.year >= (recent - years_back + 1)]
+    return subset
