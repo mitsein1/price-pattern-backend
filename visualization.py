@@ -1,16 +1,25 @@
 import matplotlib.pyplot as plt
+import pandas as pd
+import os
 
-def plot_chart(data):
-    df = pd.DataFrame(data)
-    plt.plot(df['Close'])
-    plt.title('Price Chart')
-    plt.xlabel('Date')
-    plt.ylabel('Price')
+# Assicurati che la cartella static esista
+STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
+os.makedirs(STATIC_DIR, exist_ok=True)
+
+def plot_chart(records):
+    df = pd.DataFrame(records)
+    df['Date'] = pd.to_datetime(df['Date'])
+    plt.figure(figsize=(10, 6))
+    plt.plot(df['Date'], df['Close'], label='Close')
+    plt.title('Prezzo di chiusura')
+    plt.xlabel('Data')
+    plt.ylabel('Prezzo')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
     
-    # Salviamo il grafico come immagine
-    chart_path = '/tmp/price_chart.png'
+    # Salva il grafico in static/
+    chart_path = os.path.join(STATIC_DIR, 'price_chart.png')
     plt.savefig(chart_path)
     plt.close()
-    
-    # Restituiamo il percorso dell'immagine salvata
-    return chart_path
+    # Restituisci l’URL relativo
+    return '/static/price_chart.png'
