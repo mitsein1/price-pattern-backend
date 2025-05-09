@@ -14,6 +14,15 @@ CORS(app)  # Consente richieste cross-origin
 def api_index():
     return jsonify({"message": "API Backend pronta!"})
 
+@app.route("/api/average_annual/<ticker>")
+def average_annual(ticker):
+    years_back = request.args.get("years_back", default=None, type=int)
+    try:
+        data = calculate_average_annual_pattern(ticker, years_back)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # 1) Recupera i prezzi storici
 @app.route('/api/price/<ticker>', methods=['GET'])
 def get_price(ticker):
