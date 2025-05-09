@@ -32,5 +32,15 @@ def visualize_price(ticker):
     chart_url = visualization.plot_chart(data)
     return jsonify({"chart_url": chart_url})
 
+@app.route('/seasonal/<ticker>', methods=['GET'])
+def seasonal(ticker):
+    start_md   = request.args.get('start_md','01-01')
+    end_md     = request.args.get('end_md','01-18')
+    years_back = request.args.get('years_back', None, type=int)
+    df_window  = data_retrieval.get_seasonal_window(ticker, start_md, end_md, years_back)
+    stats      = statistics.seasonal_stats(df_window)
+    return jsonify(stats)
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
