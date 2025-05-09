@@ -14,6 +14,25 @@ CORS(app)  # Consente richieste cross-origin
 def api_index():
     return jsonify({"message": "API Backend pronta!"})
 
+@app.route('/api/pattern_stats/<ticker>', methods=['GET'])
+def get_pattern_statistics(ticker):
+    start_md = request.args.get('start_md')  # es: "01-01"
+    end_md = request.args.get('end_md')      # es: "01-18"
+
+    if not start_md or not end_md:
+        return jsonify({'error': 'start_md and end_md are required in format MM-DD'}), 400
+
+    try:
+        data = get_price_data(ticker)
+
+        result = {
+            'cumulative_profit': calculate_cumulative_profit_per_year(data, start_md, end_md),
+            'pattern_returns': get_pattern_returns(data, start_md, end_md),
+            'yearly_stats': get_yearly_pattern_statistics(data, start_md, end_md),
+            'summary': get_profit_summary(data, start_md, end_md),
+            'gains_losses': get_gains_losses(data, start_md, end_md)
+        }
+
 @app.route("/api/average_annual/<ticker>")
 def average_annual(ticker):
     years_back = request.args.get("years_back", default=None, type=int)
