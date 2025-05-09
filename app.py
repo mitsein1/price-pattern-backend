@@ -8,18 +8,20 @@ import visualization
 import data_retrieval
 
 # Import esplicito delle funzioni aggiuntive dal modulo locale statistics
-from stats_mod import (
+from statistics import (
     calculate_average_annual_pattern,
     calculate_cumulative_profit_per_year,
     get_pattern_returns,
     get_yearly_pattern_statistics,
     get_profit_summary,
     get_gains_losses,
-    calculate_misc_metrics
+    calculate_misc_metrics,
+    get_seasonality
 )
 
 # Assicuriamoci che get_data fornisca DataFrame con DateTimeIndex e colonna 'Close'
 from data_retrieval import get_historical_data, get_seasonal_window, filter_by_seasonal_window, get_data
+from fastapi import FastAPI, HTTPException, Query
 
 app = Flask(__name__)
 CORS(app)  # Consente richieste cross-origin
