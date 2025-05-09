@@ -98,6 +98,11 @@ def get_pattern_statistics(ticker):
             'gains_losses': get_gains_losses(data, start_md, end_md)
         }
 
+        return jsonify(result)  # <--- MANCAVA QUESTO
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route("/api/average_annual/<ticker>")
 def average_annual(ticker):
     years_back = request.args.get("years_back", default=None, type=int)
