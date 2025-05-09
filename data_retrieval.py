@@ -1,6 +1,14 @@
 import yfinance as yf
 import pandas as pd
 
+def get_data(symbol):
+    # Esempio: carica i dati da un CSV chiamato "AAPL.csv"
+    df = pd.read_csv(f"data/{symbol}.csv", parse_dates=["Date"])
+    df.set_index("Date", inplace=True)
+    df = df[["Close"]]  # Tieni solo la colonna Close
+    return df
+
+
 # Carica dati di prezzo e restituisce un DataFrame con indice DatetimeIndex e colonna 'Close'
 def get_historical_data(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
     """
