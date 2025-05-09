@@ -6,3 +6,4 @@ uvicorn
 pydantic
 gunicorn==20.1.0
 matplotlib
+flask-cors
