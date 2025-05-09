@@ -118,3 +118,116 @@ def seasonal_stats(df_window):
         'avg_profit': round(float(avg_profit), 6),
         'max_profit': round(float(max_profit), 6)
     }
+
+# Calcola il profitto cumulativo per ciascun anno in un pattern specifico
+def calculate_cumulative_profit_per_year(df, start_day, end_day):
+    results = []
+    for year in df.index.year.unique():
+        year_data = df[df.index.year == year]
+        try:
+            start = year_data[(year_data.index.dayofyear == start_day)].iloc[0]
+            end = year_data[(year_data.index.dayofyear == end_day)].iloc[0]
+            profit = (end['Close'] - start['Close']) / start['Close'] * 100
+            results.append({'year': year, 'cumulative_profit': profit})
+        except:
+            continue
+    return pd.DataFrame(results)
+
+# Ritorni annuali del pattern (dal giorno start al giorno end) sotto forma di valori % per anno
+def get_pattern_returns(df, start_day, end_day):
+    results = []
+    for year in df.index.year.unique():
+        year_data = df[df.index.year == year]
+        try:
+            start = year_data[(year_data.index.dayofyear == start_day)].iloc[0]
+            end = year_data[(year_data.index.dayofyear == end_day)].iloc[0]
+            profit = (end['Close'] - start['Close']) / start['Close'] * 100
+            results.append({'year': year, 'return': profit})
+        except:
+            continue
+    return pd.DataFrame(results)
+
+# Statistiche annuali dettagliate per il pattern: prezzo iniziale/finale, profitti, max rise/drop
+def get_yearly_pattern_statistics(df, start_day, end_day):
+    stats = []
+    for year in df.index.year.unique():
+        year_data = df[df.index.year == year]
+        try:
+            period_data = year_data[(year_data.index.dayofyear >= start_day) & (year_data.index.dayofyear <= end_day)]
+            start = period_data.iloc[0]
+            end = period_data.iloc[-1]
+            max_rise = (period_data['Close'].max() - start['Close']) / start['Close'] * 100
+            max_drop = (period_data['Close'].min() - start['Close']) / start['Close'] * 100
+            profit = end['Close'] - start['Close']
+            profit_pct = profit / start['Close'] * 100
+            stats.append({
+                'year': year,
+                'start_date': start.name.strftime('%d %b %Y'),
+                'end_date': end.name.strftime('%d %b %Y'),
+                'start_price': round(start['Close'], 2),
+                'end_price': round(end['Close'], 2),
+                'profit': round(profit, 2),
+                'profit_pct': round(profit_pct, 2),
+                'max_rise': round(max_rise, 2),
+                'max_drop': round(max_drop, 2),
+            })
+        except:
+            continue
+    return stats
+
+# Riepilogo profitti totali e medi
+def get_profit_summary(df, start_day, end_day):
+    returns = get_pattern_returns(df, start_day, end_day)
+    total = returns['return'].sum()
+    average = returns['return'].mean()
+    return {'total_profit': round(total, 2), 'average_profit': round(average, 2)}
+
+# Conta gains/losses, percentuali e massimi
+def get_gains_losses(df, start_day, end_day):
+    returns = get_pattern_returns(df, start_day, end_day)
+    gains = returns[returns['return'] > 0]
+    losses = returns[returns['return'] < 0]
+    return {
+        'gains': len(gains),
+        'losses': len(losses),
+        'gain_pct': round(gains['return'].mean(), 2) if not gains.empty else 0,
+        'loss_pct': round(losses['return'].mean(), 2) if not losses.empty else 0,
+        'max_profit': round(gains['return'].max(), 2) if not gains.empty else 0,
+        'max_loss': round(losses['return'].min(), 2) if not losses.empty else 0,
+    }
+
+# Statistiche varie: sharpe, sortino, dev std, volatilità, streak
+def calculate_misc_metrics(df, start_day, end_day, risk_free_rate=0.0):
+    returns = get_pattern_returns(df, start_day, end_day)
+    values = returns['return']
+    std_dev = values.std()
+    sharpe = (values.mean() - risk_free_rate) / std_dev if std_dev != 0 else 0
+    downside_std = values[values < 0].std()
+    sortino = (values.mean() - risk_free_rate) / downside_std if downside_std != 0 else 0
+    volatility = std_dev
+    streak = 0
+    max_streak = 0
+    last_was_gain = None
+    for val in values:
+        if val > 0:
+            if last_was_gain is True:
+                streak += 1
+            else:
+                streak = 1
+                last_was_gain = True
+        else:
+            last_was_gain = False
+            streak = 0
+        max_streak = max(max_streak, streak)
+
+    return {
+        'trades': len(values),
+        'trading_days': end_day - start_day + 1,
+        'std_dev': round(std_dev, 2),
+        'sharpe_ratio': round(sharpe, 2),
+        'sortino_ratio': round(sortino, 2),
+        'volatility': round(volatility, 2),
+        'calendar_days': end_day - start_day + 1,
+        'current_streak': max_streak,
+        'gains': (values > 0).sum(),
+    }
