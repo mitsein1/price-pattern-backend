@@ -25,8 +25,18 @@ def get_price(ticker):
 def analyze_price(ticker):
     start_date = request.args.get('start_date', '2021-01-01')
     end_date   = request.args.get('end_date',   '2025-01-01')
+    
+    # Recupera i dati storici per il ticker
     data = data_retrieval.get_historical_data(ticker, start_date, end_date)
+    
+    # Verifica se i dati sono stati recuperati
+    if not data:
+        return jsonify({"error": "Nessun dato trovato per il ticker specificato"}), 404
+    
+    # Calcola le statistiche sui dati storici
     stats = statistics.calculate_statistics(data)
+    
+    # Restituisci le statistiche come risposta
     return jsonify(stats)
 
 # 3) Generazione grafico e restituzione URL
