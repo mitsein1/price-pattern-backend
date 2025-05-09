@@ -200,6 +200,24 @@ def seasonality():
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+        
+# PROVVISORIO PER TEST
+@app.route("/api/debug-historical", methods=["GET"])
+def debug_historical():
+    from flask import request, jsonify
+    ticker     = request.args.get("asset")
+    start_date = request.args.get("start_date", "2020-01-01")
+    end_date   = request.args.get("end_date",   "2024-12-31")
+    from data_retrieval import get_historical_data
+    df = get_historical_data(ticker, start_date, end_date)
+    return jsonify({
+        "rows":        len(df),
+        "columns":     df.columns.tolist(),
+        "first_dates": df.index[:3].strftime("%Y-%m-%d").tolist(),
+        "last_dates":  df.index[-3:].strftime("%Y-%m-%d").tolist() if len(df)>=3 else []
+    })
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
