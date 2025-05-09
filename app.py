@@ -179,5 +179,24 @@ def seasonal_analysis(ticker):
     seasonal_stats = stats_mod.seasonal_analysis(seasonal_data, years_back)
     return jsonify(seasonal_stats)
 
+@app.route("/api/seasonality", methods=["GET"])
+def seasonality():
+    asset      = request.args.get("asset", type=str)
+    years_back = request.args.get("years_back", type=int)
+    start_day  = request.args.get("start_day", default=None, type=str)
+    end_day    = request.args.get("end_day", default=None, type=str)
+
+    # Validazione minima
+    if not asset or not years_back:
+        return jsonify({"error": "asset e years_back sono obbligatori"}), 400
+    if start_day and end_day and start_day > end_day:
+        return jsonify({"error": "start_day deve precedere o essere uguale a end_day"}), 400
+
+    try:
+        result = get_seasonality(asset, years_back, start_day, end_day)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
