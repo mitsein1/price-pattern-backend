@@ -12,15 +12,28 @@ def get_data(symbol: str) -> pd.DataFrame:
 
 # Scarica dati storici da yfinance e restituisce DataFrame con indice DatetimeIndex e colonna 'Close'
 def get_historical_data(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """
+    Scarica i dati storici adjusted close da Yahoo Finance usando yf.Ticker.history
+    e restituisce un DataFrame con indice DatetimeIndex e colonna 'Close'.
+    """
     try:
-        df = yf.download(ticker, start=start_date, end=end_date)[['Close']]
+        ticker_obj = yf.Ticker(ticker)
+        df = ticker_obj.history(start=start_date, end=end_date)
+        # Se non ci sono dati, restituisci subito un DataFrame vuoto
+        if df is None or df.empty:
+            return pd.DataFrame(columns=['Close'], index=pd.DatetimeIndex([]))
+
+        # Mantieni solo la colonna 'Close'
+        df = df[['Close']]
         df.index = pd.to_datetime(df.index)
         df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
         df.dropna(inplace=True)
         return df
+
     except Exception as e:
         print(f"Errore nel download dei dati storici per {ticker}: {e}")
         return pd.DataFrame(columns=['Close'], index=pd.DatetimeIndex([]))
+
 
 # Wrapper per API: restituisce lista di record con 'Date' e 'Close'
 def get_historical_records(ticker: str, start_date: str, end_date: str) -> List[Dict]:
