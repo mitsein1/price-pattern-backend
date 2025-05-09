@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import yfinance as yf
+from data_retrieval import fetch_price_data
 
 
 def calculate_average_annual_pattern(ticker: str, years_back: int | None = None) -> list[dict]:
@@ -225,4 +226,46 @@ def calculate_misc_metrics(df: pd.DataFrame, start_day: int, end_day: int, risk_
         'volatility':      round(std_dev, 2),
         'current_streak':  max_streak,
         'gains':           int((returns > 0).sum()),
+    }
+
+def get_seasonality(
+    asset: str,
+    years_back: int,
+    start_day: str = None,
+    end_day: str = None
+) -> dict:
+    """
+    Calcola la media del prezzo di chiusura giornaliero di `asset` sul periodo stagionale
+    da `start_day` a `end_day` (formato 'MM-DD') negli ultimi `years_back` anni completi.
+    Restituisce un dict con:
+      - 'dates': list di 'MM-DD'
+      - 'average_prices': list di float (arrotondati a 6 decimali)
+    """
+    from datetime import date
+
+    # Determina l’intervallo di anni pieni
+    today = date.today()
+    end_year = today.year - 1
+    start_year = end_year - years_back + 1
+
+    sd = start_day or '01-01'
+    ed = end_day   or '12-31'
+
+    start_date = f"{start_year}-{sd}"
+    end_date   = f"{end_year}-{ed}"
+
+    # Prendi i prezzi
+    df = fetch_price_data(asset, start_date, end_date)
+
+    # Raggruppa per giorno-mese
+    df['month_day'] = df['date'].apply(lambda d: d.strftime('%m-%d'))
+    grouped = df.groupby('month_day')['close'].mean().reset_index()
+
+    # Seleziona l’intervallo stagionale
+    mask = (grouped['month_day'] >= sd) & (grouped['month_day'] <= ed)
+    season_df = grouped.loc[mask].sort_values('month_day')
+
+    return {
+        'dates':          season_df['month_day'].tolist(),
+        'average_prices': season_df['close'].round(6).tolist()
     }
