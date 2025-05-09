@@ -3,6 +3,8 @@ from flask_cors import CORS
 from data_retrieval import get_seasonal_window
 import statistics
 import visualization
+from data_retrieval import get_historical_data
+
 
 app = Flask(__name__)
 CORS(app)  # Consente richieste cross-origin
