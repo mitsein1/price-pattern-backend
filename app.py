@@ -3,7 +3,7 @@ from flask_cors import CORS
 from data_retrieval import get_seasonal_window
 import statistics
 import visualization
-from data_retrieval import get_historical_data
+from data_retrieval import get_historical_data, get_seasonal_window, filter_by_seasonal_window
 from statistics import calculate_average_annual_pattern
 
 app = Flask(__name__)
