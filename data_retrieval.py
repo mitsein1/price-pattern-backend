@@ -1,51 +1,91 @@
 import yfinance as yf
 import pandas as pd
 
-def get_historical_data(ticker, start_date, end_date):
+# Carica dati di prezzo e restituisce un DataFrame con indice DatetimeIndex e colonna 'Close'
+def get_historical_data(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
     """
     Scarica i dati di chiusura per un ticker tra due date.
-    Restituisce una lista di dizionari con 'Date' (YYYY-MM-DD) e 'Close'.
+    Restituisce un oggetto pandas.DataFrame con:
+      - DateTimeIndex (date)
+      - colonna 'Close' (float)
     """
     try:
-        df = yf.Ticker(ticker).history(start=start_date, end=end_date)[['Close']]
-        df = df.reset_index()
-        df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
-        df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
-        records = df.dropna().to_dict(orient='records')
-        return records
-    except Exception as e:
-        print(f"Errore nel download dei dati storici per {ticker}: {e}")
-        return []
-
-def get_seasonal_window(ticker, start_md, end_md, years_back=None):
-    """
-    Estrae la finestra stagionale (es. 03-15 a 05-15) da tutti gli anni disponibili per il ticker.
-    
-    Args:
-        ticker (str): simbolo del titolo (es. AAPL)
-        start_md (str): data di inizio formato 'MM-DD'
-        end_md (str): data di fine formato 'MM-DD'
-        years_back (int, optional): numero di anni da includere (es. 10). Se None, include tutto.
-
-    Returns:
-        pd.DataFrame: con colonne 'Date', 'Close', 'md'
-    """
-    try:
-        df = yf.Ticker(ticker).history(period='max')[['Close']].reset_index()
-        df['md'] = df['Date'].dt.strftime('%m-%d')
+        # Scarica i dati con yfinance, mantiene solo la colonna Close
+        df = yf.download(ticker, start=start_date, end=end_date)[['Close']]
+        # Assicura che l'indice sia di tipo datetime
+        df.index = pd.to_datetime(df.index)
+        # Converte Close in numerico e rimuove eventuali NaN
         df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
         df = df.dropna()
 
-        # Finestra tra start_md e end_md
+        # Verifica i requisiti minimi
+        assert isinstance(df.index, pd.DatetimeIndex), "L'indice non è DatetimeIndex"
+        assert 'Close' in df.columns, "La colonna 'Close' non è presente"
+
+        return df
+    except Exception as e:
+        print(f"Errore nel download dei dati storici per {ticker}: {e}")
+        # Restituisce DataFrame vuoto con struttura corretta
+        return pd.DataFrame(columns=['Close'], index=pd.DatetimeIndex([]))
+
+# Wrapper che restituisce i dati in formato lista di dizionari
+# utile se vuoi esportare in JSON o inviarli via API
+
+def get_historical_records(ticker: str, start_date: str, end_date: str) -> list[dict]:
+    """
+    Scarica i dati di chiusura per un ticker e restituisce 
+    una lista di dizionari con campi 'Date' (YYYY-MM-DD) e 'Close'.
+    """
+    df = get_historical_data(ticker, start_date, end_date)
+    df_reset = df.reset_index()
+    df_reset['Date'] = df_reset['Date'].dt.strftime('%Y-%m-%d')
+    return df_reset.rename(columns={'index': 'Date'}).loc[:, ['Date', 'Close']].to_dict(orient='records')
+
+# Estrae la finestra stagionale da tutti gli anni disponibili per il ticker
+def get_seasonal_window(
+    ticker: str,
+    start_md: str,
+    end_md: str,
+    years_back: int | None = None
+) -> pd.DataFrame:
+    """
+    Argomenti:
+        ticker (str): simbolo del titolo (es. 'AAPL')
+        start_md (str): data di inizio formato 'MM-DD'
+        end_md (str): data di fine formato 'MM-DD'
+        years_back (int, optional): numero di anni da includere.
+            Se None, include tutti gli anni disponibili.
+    Restituisce:
+        pd.DataFrame con:
+          - DateTimeIndex
+          - colonna 'Close'
+          - colonna 'md' (mese-giorno)
+    """
+    try:
+        # Scarica l'intera serie storica
+        df = yf.Ticker(ticker).history(period='max')[['Close']]
+        # Assicura indice datetime e colonna Close
+        df.index = pd.to_datetime(df.index)
+        df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
+        df = df.dropna()
+
+        # Aggiunge colonna 'md' per il confronto di mese-giorno
+        df['md'] = df.index.strftime('%m-%d')
+
+        # Filtra tra start_md e end_md
         subset = df[(df['md'] >= start_md) & (df['md'] <= end_md)]
 
-        # Eventuale filtro per ultimi N anni
+        # Limita agli ultimi `years_back` anni, se richiesto
         if years_back:
-            recent_year = subset['Date'].dt.year.max()
-            subset = subset[subset['Date'].dt.year >= (recent_year - years_back + 1)]
+            max_year = subset.index.year.max()
+            subset = subset[subset.index.year >= (max_year - years_back + 1)]
+
+        # Verifica i requisiti minimi
+        assert isinstance(subset.index, pd.DatetimeIndex), "L'indice non è DatetimeIndex"
+        assert 'Close' in subset.columns, "La colonna 'Close' non è presente"
 
         return subset
-
     except Exception as e:
         print(f"Errore nel calcolo della finestra stagionale per {ticker}: {e}")
-        return pd.DataFrame()
+        # Restituisce DataFrame vuoto con le colonne previste
+        return pd.DataFrame(columns=['Close', 'md'], index=pd.DatetimeIndex([]))
