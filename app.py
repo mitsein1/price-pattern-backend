@@ -63,5 +63,36 @@ def seasonal(ticker):
     stats = statistics.seasonal_stats(df_window)
     return jsonify(stats)
 
+@app.route('/api/performance/<ticker>', methods=['GET'])
+def get_performance(ticker):
+    start_date = request.args.get('start_date', '2021-01-01')
+    end_date   = request.args.get('end_date',   '2025-01-01')
+    
+    # Recupera i dati storici per il ticker
+    data = data_retrieval.get_historical_data(ticker, start_date, end_date)
+    
+    # Calcola le statistiche di performance come drawdown, max spike, etc.
+    performance_stats = statistics.calculate_performance_stats(data)
+    
+    return jsonify(performance_stats)
+
+@app.route('/api/seasonal_analysis/<ticker>', methods=['GET'])
+def seasonal_analysis(ticker):
+    start_md   = request.args.get('start_md', '01-01')  # Start Month-Day
+    end_md     = request.args.get('end_md', '01-18')    # End Month-Day
+    years_back = request.args.get('years_back', 5, type=int)  # Numero di anni da analizzare
+    
+    # Recupera i dati storici per il ticker
+    data = data_retrieval.get_historical_data(ticker, '2000-01-01', '2025-01-01')
+    
+    # Filtro dei dati per la finestra temporale (01-01 al 18-01 per ogni anno)
+    seasonal_data = data_retrieval.filter_by_seasonal_window(data, start_md, end_md)
+    
+    # Calcola le statistiche stagionali
+    seasonal_stats = statistics.seasonal_analysis(seasonal_data, years_back)
+    
+    return jsonify(seasonal_stats)
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
