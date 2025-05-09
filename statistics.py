@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 def seasonal_stats(df_window):
     """
