@@ -1,6 +1,40 @@
 import yfinance as yf
 import pandas as pd
 
+# data_retrieval.py
+
+def filter_by_seasonal_window(df, start_day, end_day):
+    """
+    Filtra le righe del DataFrame `df` che rientrano nella finestra stagionale tra `start_day` e `end_day`.
+
+    - `df` deve avere un indice datetime o una colonna 'Date'.
+    - `start_day` e `end_day` sono stringhe nel formato 'MM-DD', es: '03-10' o '05-05'.
+
+    Restituisce un DataFrame filtrato.
+    """
+    import pandas as pd
+
+    # Se l'indice non è datetime, prova a convertirlo
+    if not isinstance(df.index, pd.DatetimeIndex):
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'])
+            df = df.set_index('Date')
+        else:
+            raise ValueError("DataFrame deve avere un indice datetime o una colonna 'Date'.")
+
+    # Crea colonna MM-DD per ogni riga
+    month_day = df.index.strftime('%m-%d')
+
+    if start_day <= end_day:
+        # Finestra lineare (es: 03-10 a 05-05)
+        mask = (month_day >= start_day) & (month_day <= end_day)
+    else:
+        # Finestra che attraversa l'anno (es: 11-15 a 02-10)
+        mask = (month_day >= start_day) | (month_day <= end_day)
+
+    return df[mask]
+
+
 def get_data(symbol):
     # Esempio: carica i dati da un CSV chiamato "AAPL.csv"
     df = pd.read_csv(f"data/{symbol}.csv", parse_dates=["Date"])
