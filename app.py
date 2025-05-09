@@ -40,13 +40,13 @@ def analyze_price(ticker):
     return jsonify(stats)
 
 # 3) Generazione grafico e restituzione URL
-@app.route('/api/visualize/<ticker>', methods=['GET'])
-def visualize_price(ticker):
-    start_date = request.args.get('start_date', '2021-01-01')
-    end_date   = request.args.get('end_date',   '2025-01-01')
-    data = data_retrieval.get_historical_data(ticker, start_date, end_date)
-    chart_url = visualization.plot_chart(data)
-    return jsonify({"chart_url": chart_url})
+@app.route('/api/visualize/<ticker>')
+def visualize_data(ticker):
+    start = request.args.get('start_date')
+    end = request.args.get('end_date')
+    data = get_historical_data(ticker, start, end)
+    return jsonify(data)
+
 
 # 4) Analisi stagionale per finestra fissa anno su anni passati
 @app.route('/api/seasonal/<ticker>', methods=['GET'])
