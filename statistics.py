@@ -1,5 +1,34 @@
 import pandas as pd
 import numpy as np
+import yfinance as yf
+
+def calculate_average_annual_pattern(ticker, years_back=None):
+    """
+    Calcola l'andamento medio annuale di un asset, giorno per giorno, su base anni solari.
+    """
+    # Scarica dati storici completi
+    df = yf.Ticker(ticker).history(period="max")[['Close']].reset_index()
+    df['Date'] = pd.to_datetime(df['Date'])
+
+    # Filtro anni recenti se richiesto
+    if years_back:
+        recent_year = df['Date'].dt.year.max()
+        df = df[df['Date'].dt.year >= (recent_year - years_back + 1)]
+
+    # Aggiungi colonne ausiliarie
+    df['Year'] = df['Date'].dt.year
+    df['DayOfYear'] = df['Date'].dt.dayofyear
+
+    # Normalizza ogni anno con il primo valore dell’anno (opzionale)
+    df['Close_norm'] = df.groupby('Year')['Close'].transform(lambda x: x / x.iloc[0])
+
+    # Calcola la media dei valori normalizzati per ogni giorno dell’anno
+    daily_avg = df.groupby('DayOfYear')['Close_norm'].mean().reset_index()
+
+    # Rinomina colonne per chiarezza
+    daily_avg.columns = ['day_of_year', 'average_normalized_close']
+
+    return daily_avg.to_dict(orient='records')
 
 def calculate_performance_stats(data):
     df = pd.DataFrame(data)
