@@ -1,10 +1,20 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from data_retrieval import get_seasonal_window
+import pandas as pd
 import statistics
 import visualization
 from data_retrieval import get_historical_data, get_seasonal_window, filter_by_seasonal_window
 from statistics import calculate_average_annual_pattern
+from statistics import (
+    calculate_cumulative_profit_per_year,
+    get_pattern_returns,
+    get_yearly_pattern_statistics,
+    get_profit_summary,
+    get_gains_losses,
+    calculate_misc_metrics
+)
+from data_retrieval import get_data  # <- assicurati che get_data(symbol) restituisca un DataFrame con DateTimeIndex e 'Close'
 
 app = Flask(__name__)
 CORS(app)  # Consente richieste cross-origin
@@ -13,6 +23,61 @@ CORS(app)  # Consente richieste cross-origin
 @app.route('/api')
 def api_index():
     return jsonify({"message": "API Backend pronta!"})
+
+@app.route("/api/cumulative-profit", methods=["GET"])
+def cumulative_profit():
+    symbol = request.args.get("symbol")
+    start_day = int(request.args.get("start_day"))
+    end_day = int(request.args.get("end_day"))
+    df = get_data(symbol)
+    result = calculate_cumulative_profit_per_year(df, start_day, end_day)
+    return jsonify(result.to_dict(orient="records"))
+
+@app.route("/api/pattern-returns", methods=["GET"])
+def pattern_returns():
+    symbol = request.args.get("symbol")
+    start_day = int(request.args.get("start_day"))
+    end_day = int(request.args.get("end_day"))
+    df = get_data(symbol)
+    result = get_pattern_returns(df, start_day, end_day)
+    return jsonify(result.to_dict(orient="records"))
+
+@app.route("/api/yearly-statistics", methods=["GET"])
+def yearly_statistics():
+    symbol = request.args.get("symbol")
+    start_day = int(request.args.get("start_day"))
+    end_day = int(request.args.get("end_day"))
+    df = get_data(symbol)
+    result = get_yearly_pattern_statistics(df, start_day, end_day)
+    return jsonify(result)
+
+@app.route("/api/profit-summary", methods=["GET"])
+def profit_summary():
+    symbol = request.args.get("symbol")
+    start_day = int(request.args.get("start_day"))
+    end_day = int(request.args.get("end_day"))
+    df = get_data(symbol)
+    result = get_profit_summary(df, start_day, end_day)
+    return jsonify(result)
+
+@app.route("/api/gains-losses", methods=["GET"])
+def gains_losses():
+    symbol = request.args.get("symbol")
+    start_day = int(request.args.get("start_day"))
+    end_day = int(request.args.get("end_day"))
+    df = get_data(symbol)
+    result = get_gains_losses(df, start_day, end_day)
+    return jsonify(result)
+
+@app.route("/api/misc-metrics", methods=["GET"])
+def misc_metrics():
+    symbol = request.args.get("symbol")
+    start_day = int(request.args.get("start_day"))
+    end_day = int(request.args.get("end_day"))
+    df = get_data(symbol)
+    result = calculate_misc_metrics(df, start_day, end_day)
+    return jsonify(result)
+
 
 @app.route('/api/pattern_stats/<ticker>', methods=['GET'])
 def get_pattern_statistics(ticker):
