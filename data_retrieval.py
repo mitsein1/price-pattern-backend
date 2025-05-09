@@ -66,3 +66,26 @@ def get_seasonal_window(
     except Exception as e:
         print(f"Errore nel calcolo della finestra stagionale per {ticker}: {e}")
         return pd.DataFrame(columns=['Close', 'md'], index=pd.DatetimeIndex([]))
+        
+def fetch_price_data(asset: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """
+    Wrapper su get_historical_data per restituire un DataFrame con colonne:
+      - 'date' (datetime.date)
+      - 'close' (float)
+    tra start_date e end_date inclusi.
+    """
+    # Scarica i dati
+    df = get_historical_data(asset, start_date, end_date)
+
+    # Porta l'indice in colonna e rinomina
+    df = df.reset_index().rename(columns={'Date': 'date', 'Close': 'close'})
+
+    # Se l'indice era DatetimeIndex, pandas lo ha chiamato 'index'
+    if 'index' in df.columns:
+        df = df.rename(columns={'index': 'date'})
+
+    # Garantiamo tipo date (non datetime)
+    df['date'] = pd.to_datetime(df['date']).dt.date
+
+    # Seleziona solo le due colonne
+    return df[['date', 'close']]
