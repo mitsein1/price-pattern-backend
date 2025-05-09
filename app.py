@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import data_retrieval
+from data_retrieval import get_seasonal_window
 import statistics
 import visualization
 
