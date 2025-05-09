@@ -133,12 +133,15 @@ def get_price(ticker):
 @app.route('/api/analysis/<ticker>', methods=['GET'])
 def analyze_price(ticker):
     start_date = request.args.get('start_date', '2021-01-01')
-    end_date = request.args.get('end_date', '2025-01-01')
+    end_date   = request.args.get('end_date',   '2025-01-01')
     data = get_historical_data(ticker, start_date, end_date)
-    if not data:
+    # Evita l’errore su DataFrame: controlla None o empty
+    if data is None or data.empty:
         return jsonify({"error": "Nessun dato trovato per il ticker specificato"}), 404
+
     stats = stats_mod.calculate_statistics(data)
     return jsonify(stats)
+
 
 # 11) Chart generation
 @app.route('/api/visualize/<ticker>', methods=['GET'])
