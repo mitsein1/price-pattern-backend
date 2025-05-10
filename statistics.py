@@ -237,6 +237,10 @@ def get_yearly_pattern_statistics(
 
     stats = []
 
+    # Assicuriamoci che il DF abbia la colonna 'close'
+    col = 'close' if 'close' in df.columns else 'Close'
+    df = df.rename(columns={col: 'close'})
+
     for year, group in df.groupby(df.index.year):
         # 1) Calcola i day‑of‑year raw
         sd_raw = md_to_doy(start_md, year)
@@ -256,12 +260,12 @@ def get_yearly_pattern_statistics(
             continue
 
         # 4) Estrai prezzi
-        s = period['close' if 'close' in period.columns else 'Close'].iloc[0]
-        e = period['close' if 'close' in period.columns else 'Close'].iloc[-1]
+        s = period['close'].iloc[0]
+        e = period['close'].iloc[-1]
 
         # 5) Calcola statistiche
-        max_rise   = round((period['Close'].max()  / s - 1) * 100, 2)
-        max_drop   = round((period['Close'].min()  / s - 1) * 100, 2)
+        max_rise   = round((period['close'].max()  / s - 1) * 100, 2)
+        max_drop   = round((period['close'].min()  / s - 1) * 100, 2)
         profit     = round((e - s), 2)
         profit_pct = round((e / s - 1) * 100, 2)
 
@@ -276,7 +280,6 @@ def get_yearly_pattern_statistics(
         })
 
     return stats
-
 
 
 def get_profit_summary(
