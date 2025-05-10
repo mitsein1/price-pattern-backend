@@ -32,15 +32,7 @@ CORS(app)  # Consente richieste cross-origin
 def api_index():
     return jsonify({"message": "API Backend pronta!"})
 
-# 1) Cumulative profit per year (pattern specifico)
-@app.route("/api/cumulative-profit", methods=["GET"])
-def cumulative_profit():
-    symbol = request.args.get("symbol")
-    start_day = int(request.args.get("start_day"))
-    end_day = int(request.args.get("end_day"))
-    df = get_data(symbol)
-    result = calculate_cumulative_profit_per_year(df, start_day, end_day)
-    return jsonify(result.to_dict(orient="records"))
+
 
 # 2) Pattern returns
 @app.route("/api/pattern-returns", methods=["GET"])
