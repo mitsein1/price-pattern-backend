@@ -175,8 +175,14 @@ def seasonal_analysis(ticker):
     seasonal_stats = stats_mod.seasonal_analysis(seasonal_data, years_back)
     return jsonify(seasonal_stats)
 
+from flask import request, jsonify
+from statistics import get_seasonality
+
 @app.route("/api/seasonality", methods=["GET"])
 def seasonality():
+    # Debug: conferma entrata nella route
+    print("[DEBUG] Entered /api/seasonality handler")
+    
     asset      = request.args.get("asset", type=str)
     years_back = request.args.get("years_back", type=int)
     start_day  = request.args.get("start_day", default=None, type=str)
@@ -189,10 +195,19 @@ def seasonality():
         return jsonify({"error": "start_day deve precedere o essere uguale a end_day"}), 400
 
     try:
+        # Debug: parametri passati a get_seasonality
+        print(f"[DEBUG] Params - asset: {asset}, years_back: {years_back}, start_day: {start_day}, end_day: {end_day}")
+        
         result = get_seasonality(asset, years_back, start_day, end_day)
+        
+        # Debug: dimensione del risultato
+        print(f"[DEBUG] Seasonality result - dates: {len(result['dates'])}, prices: {len(result['average_prices'])}")
+        
         return jsonify(result)
     except Exception as e:
+        print(f"[DEBUG] Seasonality error: {e}")
         return jsonify({"error": str(e)}), 500
+
         
 # PROVVISORIO PER TEST
 @app.route("/api/debug-historical", methods=["GET"])
