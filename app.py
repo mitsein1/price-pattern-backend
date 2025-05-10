@@ -215,36 +215,45 @@ def seasonality():
         return jsonify({"error": str(e)}), 500
 @app.route("/api/seasonality/plot", methods=["GET"])
 def seasonality_plot():
-    # 1) Estrai parametri esattamente come nell’API JSON
     asset      = request.args.get("asset",      type=str)
     years_back = request.args.get("years_back", type=int)
     start_day  = request.args.get("start_day",  default=None, type=str)
     end_day    = request.args.get("end_day",    default=None, type=str)
 
-    # 2) Chiama la funzione che già esiste
     data = get_seasonality(asset, years_back, start_day, end_day)
     dates = data["dates"]
     vals  = data["average_prices"]
 
-    # 3) Crea il plot
+    # Se non ci sono dati
+    if not dates or not vals:
+        return jsonify({"error": "Nessun dato seasonality da plottare"}), 400
+
+    # Crea il plot usando indici numerici
+    import io
+    import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots(figsize=(8,4))
-    ax.plot(dates, vals, marker="o", linewidth=2)
+    x = list(range(len(dates)))
+    ax.plot(x, vals, marker="o", linewidth=2, label="Seasonality")
+
+    # Etichette personalizzate sull'asse x: mostrane solo alcune per non sovraccaricare
+    step = max(1, len(dates)//10)
+    ax.set_xticks(x[::step])
+    ax.set_xticklabels([dates[i] for i in x[::step]], rotation=45, fontsize=8)
+
     ax.set_title(f"Seasonality {asset} ({start_day}→{end_day}, {years_back} yrs)")
     ax.set_xlabel("Date (MM-DD)")
     ax.set_ylabel("Normalized Price")
-    ax.tick_params(axis='x', rotation=45)
     ax.grid(True)
+    ax.legend()
 
-    # 4) Scrivi il plot in un buffer in memoria
     buf = io.BytesIO()
     plt.tight_layout()
     fig.savefig(buf, format="png")
     plt.close(fig)
     buf.seek(0)
 
-    # 5) Rispondi con l’immagine
-    return send_file(buf, mimetype="image/png", 
-                     download_name=f"seasonality_{asset}.png")
+    return send_file(buf, mimetype="image/png", download_name=f"seasonality_{asset}.png")
 
         
 # PROVVISORIO PER TEST
