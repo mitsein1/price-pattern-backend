@@ -230,8 +230,24 @@ def calculate_misc_metrics(df: pd.DataFrame, start_day: int, end_day: int, risk_
         'current_streak':  max_streak,
         'gains':           int((returns > 0).sum()),
     }
-
- def get_seasonality(asset: str, years_back: int, start_day: str=None, end_day: str=None) -> dict:
+def get_price_series(asset: str, year: int) -> dict:
+    """
+    Ritorna le date e i prezzi di chiusura giornalieri di `asset` per l'anno `year`.
+    Se `year` è l'anno corrente, include fino a oggi; altrimenti fino al 31/12.
+    """
+    today = datetime.date.today()
+    start_date = f"{year}-01-01"
+    end_date = (
+        today.isoformat()
+        if year == today.year
+        else f"{year}-12-31"
+    )
+    df = fetch_price_data(asset, start_date, end_date)
+    return {
+        "dates":  [d.isoformat() for d in df["date"]],
+        "prices": df["close"].tolist()
+    }
+def get_seasonality(asset: str, years_back: int, start_day: str=None, end_day: str=None) -> dict:
     """
     Restituisce per ogni giorno MM-DD della finestra:
       - dates: lista di "MM-DD"
@@ -278,24 +294,5 @@ def calculate_misc_metrics(df: pd.DataFrame, start_day: int, end_day: int, risk_
     return {
         'dates':          season_df['month_day'].tolist(),
         'average_prices': season_df['average_norm'].round(6).tolist()
-    }
-
-
-def get_price_series(asset: str, year: int) -> dict:
-    """
-    Ritorna le date e i prezzi di chiusura giornalieri di `asset` per l'anno `year`.
-    Se `year` è l'anno corrente, include fino a oggi; altrimenti fino al 31/12.
-    """
-    today = datetime.date.today()
-    start_date = f"{year}-01-01"
-    end_date = (
-        today.isoformat()
-        if year == today.year
-        else f"{year}-12-31"
-    )
-    df = fetch_price_data(asset, start_date, end_date)
-    return {
-        "dates":  [d.isoformat() for d in df["date"]],
-        "prices": df["close"].tolist()
     }
 
