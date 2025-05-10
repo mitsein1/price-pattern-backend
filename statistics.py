@@ -256,30 +256,29 @@ def get_seasonality(asset: str, years_back: int, start_day: str = None, end_day:
     from datetime import date
     import pandas as pd
 
-    # 1) Intervallo di anni complete
+    # 1) Intervallo di anni completi
     today = date.today()
     end_year = today.year - 1
     start_year = end_year - years_back + 1
 
     # 2) Date di fetch
     sd = start_day or "01-01"
-    ed = end_day   or "12-31"
+    ed = end_day or "12-31"
     start_date = f"{start_year}-{sd}"
-    end_date   = f"{end_year}-{ed}"
+    end_date = f"{end_year}-{ed}"
 
-    # 3) Scarica dati
+    # 3) Scarica dati (indice DatetimeIndex, colonna 'close')
     df = fetch_price_data(asset, start_date, end_date)
-    # Aspettiamo df con indice DatetimeIndex e colonna 'Close'
 
-    # 3a) Assicuriamoci di avere un DatetimeIndex
+    # 3a) Assicuriamoci che l’indice sia datetime
     df.index = pd.to_datetime(df.index)
 
-    # 3b) Normalizza per anno: base = primo close di ogni anno
+    # 3b) Normalizza per anno (base = primo close in finestra)
     df['Year'] = df.index.year
-    df['close_norm'] = df['Close'] / df.groupby('Year')['Close'] \
-                                    .transform(lambda s: s.iloc[0])
+    df['close_norm'] = df['close'] / df.groupby('Year')['close'] \
+                                        .transform(lambda s: s.iloc[0])
 
-    # 3c) Raggruppa per MM-DD e calcola la media dei normalized
+    # 3c) Raggruppa per MM-DD e calcola media normalizzata
     df['month_day'] = df.index.strftime('%m-%d')
     grouped = (
         df
@@ -298,6 +297,7 @@ def get_seasonality(asset: str, years_back: int, start_day: str = None, end_day:
         'dates':          season_df['month_day'].tolist(),
         'average_prices': season_df['average_norm'].round(6).tolist()
     }
+
 
 
 
