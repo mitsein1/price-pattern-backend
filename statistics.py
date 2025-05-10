@@ -404,7 +404,7 @@ def get_price_series(asset: str, year: int) -> dict:
     Ritorna le date e i prezzi di chiusura giornalieri di `asset` per l'anno `year`.
     Se `year` è l'anno corrente, include fino a oggi; altrimenti fino al 31/12.
     """
-    today = datetime.date.today()
+    today = date.today()
     start_date = f"{year}-01-01"
     end_date = (
         today.isoformat()
