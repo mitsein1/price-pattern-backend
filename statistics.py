@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from data_retrieval import fetch_price_data
+from data_retrieval import fetch_price_data, get_historical_data
 import datetime
 #from statistics import get_price_series, calculate_cumulative_profit_per_year
 from datetime import date
@@ -248,15 +248,16 @@ def get_price_series(asset: str, year: int) -> dict:
         "prices": df["close"].tolist()
     }
 
+from data_retrieval import get_historical_data
+import pandas as pd
+from datetime import date
+
 def get_seasonality(asset: str, years_back: int, start_day: str = None, end_day: str = None) -> dict:
     """
     Restituisce per ogni giorno MM-DD della finestra:
       - dates: lista di "MM-DD"
       - average_prices: valore medio normalizzato (base=1.0 al primo giorno di ciascun anno)
     """
-    from datetime import date
-    import pandas as pd
-
     # 1) Intervallo di anni completi
     today = date.today()
     end_year = today.year - 1
@@ -268,8 +269,9 @@ def get_seasonality(asset: str, years_back: int, start_day: str = None, end_day:
     start_date = f"{start_year}-{sd}"
     end_date   = f"{end_year}-{ed}"
 
-    # 3) Scarica dati (indice DatetimeIndex, colonna 'close')
-    df = fetch_price_data(asset, start_date, end_date)
+    # 3) Scarica dati (indice DatetimeIndex, colonna 'Close')
+    df = get_historical_data(asset, start_date, end_date)
+    df = df.rename(columns={'Close': 'close'})
 
     # --- DEBUG: verifica righe e primi indici ---
     print(f"[DEBUG] fetched {len(df)} rows from {start_date} to {end_date}")
@@ -302,6 +304,7 @@ def get_seasonality(asset: str, years_back: int, start_day: str = None, end_day:
         'dates':          season_df['month_day'].tolist(),
         'average_prices': season_df['average_norm'].round(6).tolist()
     }
+
 
 
 
