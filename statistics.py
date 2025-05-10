@@ -227,29 +227,54 @@ def get_gains_losses(df: pd.DataFrame, start_day: int, end_day: int) -> dict:
     }
 
 
-def calculate_misc_metrics(df: pd.DataFrame, start_day: int, end_day: int, risk_free_rate: float = 0.0) -> dict:
-    """Calcola metriche aggiuntive: Sharpe, Sortino, volatilità e streak."""
-    returns = get_pattern_returns(df, start_day, end_day)['return']
-    count = len(returns)
+def calculate_misc_metrics(
+    df: pd.DataFrame,
+    start_md: str,
+    end_md: str,
+    risk_free_rate: float = 0.0
+) -> dict:
+    """
+    Calcola metriche aggiuntive su una finestra month-day per tutti gli anni:
+      - df: indice DatetimeIndex, colonna 'close'
+      - start_md/end_md: stringhe "MM-DD"
+    """
+
+    # Helper: converte "MM-DD" in day-of-year per un dato anno
+    def md_to_doy(md: str, year: int) -> int:
+        dt = datetime.strptime(f"{year}-{md}", "%Y-%m-%d")
+        return dt.timetuple().tm_yday
+
+    # Aggrega tutti i ritorni giornalieri anno per anno
+    all_returns = []
+    for year, group in df.groupby(df.index.year):
+        sd = md_to_doy(start_md, year)
+        ed = md_to_doy(end_md,   year)
+        window = group[(group.index.dayofyear >= sd) & (group.index.dayofyear <= ed)]
+        rets = window['close'].pct_change().dropna().tolist()
+        all_returns.extend(rets)
+
+    returns = pd.Series(all_returns)
+    count   = len(returns)
     std_dev = returns.std() if count > 1 else 0
-    sharpe = (returns.mean() - risk_free_rate) / std_dev if std_dev > 0 else 0
+    sharpe  = (returns.mean() - risk_free_rate) / std_dev if std_dev > 0 else 0
     downside = returns[returns < 0].std() if not returns[returns < 0].empty else 0
-    sortino = (returns.mean() - risk_free_rate) / downside if downside > 0 else 0
-    max_streak = 0
-    streak = 0
+    sortino  = (returns.mean() - risk_free_rate) / downside if downside > 0 else 0
+
+    # Calcola lo streak di guadagni consecutivi
+    max_streak = streak = 0
     for val in returns:
         streak = streak + 1 if val > 0 else 0
         max_streak = max(max_streak, streak)
 
     return {
-        'trades':          count,
-        'calendar_days':   end_day - start_day + 1,
-        'std_dev':         round(std_dev, 2),
-        'sharpe_ratio':    round(sharpe, 2),
-        'sortino_ratio':   round(sortino, 2),
-        'volatility':      round(std_dev, 2),
-        'current_streak':  max_streak,
-        'gains':           int((returns > 0).sum()),
+        'trades':         count,
+        'calendar_days':  None,  # questo campo verrà calcolato in route
+        'std_dev':        round(std_dev, 2),
+        'sharpe_ratio':   round(sharpe, 2),
+        'sortino_ratio':  round(sortino, 2),
+        'volatility':     round(std_dev, 2),
+        'current_streak': max_streak,
+        'gains':          int((returns > 0).sum()),
     }
 def get_price_series(asset: str, year: int) -> dict:
     """
