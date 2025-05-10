@@ -6,6 +6,8 @@ import datetime
 import statistics as stats_mod
 import visualization
 import data_retrieval
+import logging
+logger = logging.getLogger(__name__)
 
 # Import esplicito delle funzioni aggiuntive dal modulo locale statistics
 from statistics import (
@@ -181,8 +183,7 @@ from statistics import get_seasonality
 @app.route("/api/seasonality", methods=["GET"])
 def seasonality():
     # Debug: conferma entrata nella route
-    print("[DEBUG] Entered /api/seasonality handler")
-    
+    logger.info("Entered /api/seasonality handler")
     asset      = request.args.get("asset", type=str)
     years_back = request.args.get("years_back", type=int)
     start_day  = request.args.get("start_day", default=None, type=str)
