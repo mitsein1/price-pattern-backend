@@ -4,7 +4,7 @@ import yfinance as yf
 from data_retrieval import fetch_price_data
 import datetime
 #from statistics import get_price_series, calculate_cumulative_profit_per_year
-
+from datetime import date
 
 
 def calculate_average_annual_pattern(ticker: str, years_back: int | None = None) -> list[dict]:
@@ -231,47 +231,63 @@ def calculate_misc_metrics(df: pd.DataFrame, start_day: int, end_day: int, risk_
         'gains':           int((returns > 0).sum()),
     }
 
-def get_seasonality(
-    asset: str,
-    years_back: int,
-    start_day: str = None,
-    end_day: str = None
-) -> dict:
-    """
-    Calcola la media del prezzo di chiusura giornaliero di `asset` sul periodo stagionale
-    da `start_day` a `end_day` (formato 'MM-DD') negli ultimi `years_back` anni completi.
-    Restituisce un dict con:
-      - 'dates': list di 'MM-DD'
-      - 'average_prices': list di float (arrotondati a 6 decimali)
-    """
-    from datetime import date
+ def get_seasonality(asset: str, years_back: int, start_day: str=None, end_day: str=None) -> dict:
+     """
+     Restituisce per ogni giorno MM-DD della finestra:
+       - dates: lista di "MM-DD"
+-    - average_prices: prezzo medio assoluto
++    - average_prices: valore medio normalizzato (base=1.0 al primo giorno di ciascun anno)
+     """
+     from datetime import date
 
-    # Determina l’intervallo di anni pieni
-    today = date.today()
-    end_year = today.year - 1
-    start_year = end_year - years_back + 1
+     # 1) Calcola start_year/end_year come oggi.year-1 → -(years_back-1)
+     today = date.today()
+     end_year   = today.year - 1
+     start_year = end_year - years_back + 1
 
-    sd = start_day or '01-01'
-    ed = end_day   or '12-31'
+     # 2) Costruisci start_date / end_date
+     sd = start_day or "01-01"
+     ed = end_day   or "12-31"
+     start_date = f"{start_year}-{sd}"
+     end_date   = f"{end_year}-{ed}"
 
-    start_date = f"{start_year}-{sd}"
-    end_date   = f"{end_year}-{ed}"
+     # 3) Scarica tutta la serie
+     df = fetch_price_data(asset, start_date, end_date)
+     # df deve avere colonne ['date','close']
 
-    # Prendi i prezzi
-    df = fetch_price_data(asset, start_date, end_date)
+-    # media dei prezzi assoluti
+-    df['month_day'] = df['date'].dt.strftime('%m-%d')
+-    grouped = df.groupby('month_day')['close'].mean().reset_index()
++    # --- NUOVA LOGICA DI NORMALIZZAZIONE ---
++    # 3a) raggruppa per anno e normalizza ciascuna serie al primo valore
++    df['Year'] = df['date'].dt.year
++    df['close_norm'] = (
++        df.groupby('Year')['close']
++          .transform(lambda serie: serie / serie.iloc[0])
++    )
++    # 3b) media dei valori normalizzati per giorno-mese
++    df['month_day'] = df['date'].dt.strftime('%m-%d')
++    grouped = (
++        df
++        .groupby('month_day')['close_norm']
++        .mean()
++        .reset_index()
++        .rename(columns={'close_norm': 'average_norm'})
++    )
 
-    # Raggruppa per giorno-mese
-    df['month_day'] = df['date'].apply(lambda d: d.strftime('%m-%d'))
-    grouped = df.groupby('month_day')['close'].mean().reset_index()
+     # 4) Filtra sulla sotto-finestra selezionata
+-    mask = (grouped['month_day'] >= sd) & (grouped['month_day'] <= ed)
+-    season_df = grouped.loc[mask].sort_values('month_day')
++    mask = (grouped['month_day'] >= sd) & (grouped['month_day'] <= ed)
++    season_df = grouped.loc[mask].sort_values('month_day')
 
-    # Seleziona l’intervallo stagionale
-    mask = (grouped['month_day'] >= sd) & (grouped['month_day'] <= ed)
-    season_df = grouped.loc[mask].sort_values('month_day')
+     # 5) Restituisci JSON
+     return {
+         'dates':          season_df['month_day'].tolist(),
+-        'average_prices': season_df['close'].round(6).tolist()
++        'average_prices': season_df['average_norm'].round(6).tolist()
+     }
 
-    return {
-        'dates':          season_df['month_day'].tolist(),
-        'average_prices': season_df['close'].round(6).tolist()
-    }
 def get_price_series(asset: str, year: int) -> dict:
     """
     Ritorna le date e i prezzi di chiusura giornalieri di `asset` per l'anno `year`.
