@@ -61,7 +61,7 @@ def pattern_returns():
 
     # Passa direttamente le stringhe MM-DD
     result_df = get_pattern_returns(df, start_md, end_md)
-    return jsonify(result_df.to_dict(orient="records")))
+    return jsonify(result_df.to_dict(orient="records"))
 
 # 3) Yearly pattern statistics
 @app.route("/api/pattern-statistics", methods=["GET"])
