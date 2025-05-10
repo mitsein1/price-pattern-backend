@@ -8,7 +8,7 @@ import visualization
 import data_retrieval
 import logging
 logger = logging.getLogger(__name__)
-from datetime import date
+from datetime import date, datetime
 import io
 import matplotlib.pyplot as plt
 from flask import send_file
@@ -41,6 +41,10 @@ def api_index():
 
 
 
+# helper interno per convertire "MM-DD" in day-of-year
+def md_to_doy(md: str, year: int = 2000) -> int:
+    return datetime.strptime(f"{year}-{md}", "%Y-%m-%d").timetuple().tm_yday
+
 # 2) Pattern returns
 @app.route("/api/pattern-returns", methods=["GET"])
 def pattern_returns():
@@ -48,23 +52,36 @@ def pattern_returns():
     start_md = request.args.get("start_day", type=str)
     end_md   = request.args.get("end_day",   type=str)
     if not asset or not start_md or not end_md:
-        return jsonify({"error":"asset, start_day e end_day obbligatori"}),400
+        return jsonify({"error":"asset, start_day e end_day obbligatori"}), 400
+
+    # scarica i dati dal 2000 ad oggi
+    df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
+    df = df.rename(columns={'Close':'close'})
+
+    # converto in numeri day-of-year
+    sd = md_to_doy(start_md)
+    ed = md_to_doy(end_md)
+
+    result_df = get_pattern_returns(df, sd, ed)
+    return jsonify(result_df.to_dict(orient="records"))
+
+# 3) Yearly pattern statistics
+@app.route("/api/pattern-statistics", methods=["GET"])
+def pattern_statistics():
+    asset    = request.args.get("asset",     type=str)
+    start_md = request.args.get("start_day", type=str)
+    end_md   = request.args.get("end_day",   type=str)
+    if not asset or not start_md or not end_md:
+        return jsonify({"error":"asset, start_day e end_day obbligatori"}), 400
 
     df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
     df = df.rename(columns={'Close':'close'})
 
-    result_df = get_pattern_returns(df, start_md, end_md)
-    return jsonify(result_df.to_dict(orient="records"))
+    sd = md_to_doy(start_md)
+    ed = md_to_doy(end_md)
 
-# 3) Yearly pattern statistics
-@app.route("/api/yearly-statistics", methods=["GET"])
-def yearly_statistics():
-    symbol = request.args.get("symbol")
-    start_day = int(request.args.get("start_day"))
-    end_day = int(request.args.get("end_day"))
-    df = get_data(symbol)
-    result = get_yearly_pattern_statistics(df, start_day, end_day)
-    return jsonify(result)
+    stats_list = get_yearly_pattern_statistics(df, sd, ed)
+    return jsonify(stats_list)
 
 # 4) Profit summary
 @app.route("/api/profit-summary", methods=["GET"])
