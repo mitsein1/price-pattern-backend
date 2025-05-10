@@ -43,6 +43,7 @@ def api_index():
 
 # helper interno per convertire "MM-DD" in day-of-year
 def md_to_doy(md: str, year: int = 2000) -> int:
+    """Converte 'MM-DD' in day-of-year usando un anno fittizio."""
     return datetime.strptime(f"{year}-{md}", "%Y-%m-%d").timetuple().tm_yday
 
 # 2) Pattern returns
@@ -68,19 +69,28 @@ def pattern_returns():
 # 3) Yearly pattern statistics
 @app.route("/api/pattern-statistics", methods=["GET"])
 def pattern_statistics():
-    asset    = request.args.get("asset",     type=str)
-    start_md = request.args.get("start_day", type=str)
-    end_md   = request.args.get("end_day",   type=str)
+    # 1) Leggi i parametri
+    asset     = request.args.get("asset", type=str)
+    start_md  = request.args.get("start_day", type=str)  # es. "01-01"
+    end_md    = request.args.get("end_day",   type=str)  # es. "12-31"
     if not asset or not start_md or not end_md:
-        return jsonify({"error":"asset, start_day e end_day obbligatori"}), 400
+        return jsonify({"error": "asset, start_day e end_day obbligatori"}), 400
 
+    # 2) Converti MM-DD → giorno dell'anno
+    try:
+        sd = md_to_doy(start_md)
+        ed = md_to_doy(end_md)
+    except ValueError:
+        return jsonify({"error": "Formato start_day/end_day non valido, usa MM-DD"}), 400
+
+    # 3) Scarica la serie storica dal 2000 ad oggi
     df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
-    df = df.rename(columns={'Close':'close'})
+    df = df.rename(columns={"Close": "close"})
 
-    sd = md_to_doy(start_md)
-    ed = md_to_doy(end_md)
-
+    # 4) Chiama la funzione di statistiche annuali
     stats_list = get_yearly_pattern_statistics(df, sd, ed)
+
+    # 5) Restituisci il JSON
     return jsonify(stats_list)
 
 # 4) Profit summary
@@ -331,25 +341,7 @@ def price_series():
 
 
 
-@app.route("/api/pattern-statistics", methods=["GET"])
-def pattern_statistics():
-    # 1. Estrai e valida i parametri
-    asset     = request.args.get("asset",     type=str)
-    start_day = request.args.get("start_day", type=int)
-    end_day   = request.args.get("end_day",   type=int)
-    if not asset or start_day is None or end_day is None:
-        return jsonify({"error": "asset, start_day e end_day sono obbligatori"}), 400
 
-    # 2. Scarica dati storici dal 1° gennaio dell'anno più vecchio
-    #    fino a oggi
-    today = datetime.date.today().isoformat()
-    df    = get_historical_data(asset, "2000-01-01", today)
-
-    # 3. Calcola le statistiche
-    stats_list = get_yearly_pattern_statistics(df, start_day, end_day)
-
-    # 4. Restituisci la lista JSON
-    return jsonify(stats_list)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
