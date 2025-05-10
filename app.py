@@ -107,29 +107,27 @@ def cumulative_profit():
 # 6) Misc metrics (Sharpe, volatility, etc.)
 @app.route("/api/misc-metrics", methods=["GET"])
 def misc_metrics():
-    asset    = request.args.get("asset",     type=str)
-    start_md = request.args.get("start_day", type=str)
-    end_md   = request.args.get("end_day",   type=str)
-    if not asset or not start_md or not end_md:
-        return jsonify({"error":"asset, start_day e end_day obbligatori"}),400
+    asset      = request.args.get("asset",      type=str)
+    years_back = request.args.get("years_back", type=int)
+    start_md   = request.args.get("start_day",  type=str)
+    end_md     = request.args.get("end_day",    type=str)
 
+    # Validazione
+    if not asset or not years_back or not start_md or not end_md:
+        return jsonify({"error":"asset, years_back, start_day e end_day obbligatori"}),400
+
+    # 1) Scarica dati storici fino a oggi
     df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
     df = df.rename(columns={'Close':'close'})
-    result = calculate_misc_metrics(df, start_md, end_md)
-    # aggiungi calendar_days se vuoi: 
-    result['calendar_days'] = (
-        md_to_doy(end_md, date.today().year) 
-      - md_to_doy(start_md, date.today().year) + 1
-    )
-    return jsonify(result)
-    # 2) Scarica dati storici dal 2000 a oggi
-    df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
-    df = df.rename(columns={'Close': 'close'})
 
-    # 3) Calcola metriche passando month-day
-    result = calculate_misc_metrics(df, start_md, end_md)
+    # 2) Calcola metriche tecniche sui últimos years_back
+    result = calculate_misc_metrics(df, start_md, end_md, years_back)
 
-    # 4) Restituisci JSON
+    # 3) Aggiungi calendar_days dinamico
+    sd = md_to_doy(start_md, date.today().year)
+    ed = md_to_doy(end_md,   date.today().year)
+    result['calendar_days'] = ed - sd + 1
+
     return jsonify(result)
 
 # 7) Pattern stats endpoint aggregato
