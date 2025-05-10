@@ -2,6 +2,23 @@ import yfinance as yf
 import pandas as pd
 from typing import List, Dict, Optional
 
+def align_to_trading_days(df: pd.DataFrame, start_dd: int, end_dd: int) -> (int, int):
+    """
+    Date day-of-year start_dd/end_dd → converte a primi day-of-year
+    disponibili in df per quell’anno.
+    Ritorna (aligned_start_dd, aligned_end_dd).
+    """
+    # Estrai la mappa dayofyear → valori True
+    days = sorted(df.index.dayofyear.unique())
+
+    # Primo giorno >= start_dd
+    aligned_start = next((d for d in days if d >= start_dd), None)
+    # Ultimo giorno <= end_dd
+    aligned_end   = next((d for d in reversed(days) if d <= end_dd), None)
+
+    return aligned_start, aligned_end
+
+
 # Carica dati di prezzo da CSV locale
 # Il file CSV deve trovarsi in data/{symbol}.csv con colonna 'Date' e 'Close'
 def get_data(symbol: str) -> pd.DataFrame:
