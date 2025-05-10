@@ -169,7 +169,6 @@ def calculate_cumulative_profit_per_year(
         })
 
     return pd.DataFrame(results)
-}
 
 
 
