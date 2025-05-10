@@ -295,7 +295,25 @@ def cumulative_profit():
     df = get_historical_data(asset, "2000-01-01", datetime.date.today().isoformat())
     result_df = calculate_cumulative_profit_per_year(df, start_dd, end_dd)
     return jsonify(result_df.to_dict(orient="records"))
+@app.route("/api/pattern-statistics", methods=["GET"])
+def pattern_statistics():
+    # 1. Estrai e valida i parametri
+    asset     = request.args.get("asset",     type=str)
+    start_day = request.args.get("start_day", type=int)
+    end_day   = request.args.get("end_day",   type=int)
+    if not asset or start_day is None or end_day is None:
+        return jsonify({"error": "asset, start_day e end_day sono obbligatori"}), 400
 
+    # 2. Scarica dati storici dal 1° gennaio dell'anno più vecchio
+    #    fino a oggi
+    today = datetime.date.today().isoformat()
+    df    = get_historical_data(asset, "2000-01-01", today)
+
+    # 3. Calcola le statistiche
+    stats_list = get_yearly_pattern_statistics(df, start_day, end_day)
+
+    # 4. Restituisci la lista JSON
+    return jsonify(stats_list)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
