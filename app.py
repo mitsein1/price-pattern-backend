@@ -8,7 +8,7 @@ import visualization
 import data_retrieval
 import logging
 logger = logging.getLogger(__name__)
-
+from datetime import date
 import io
 import matplotlib.pyplot as plt
 from flask import send_file
@@ -84,11 +84,21 @@ def gains_losses():
 # 6) Misc metrics (Sharpe, volatility, etc.)
 @app.route("/api/misc-metrics", methods=["GET"])
 def misc_metrics():
-    symbol = request.args.get("symbol")
-    start_day = int(request.args.get("start_day"))
-    end_day = int(request.args.get("end_day"))
-    df = get_data(symbol)
-    result = calculate_misc_metrics(df, start_day, end_day)
+    # 1) Estrai params come stringhe "MM-DD"
+    asset    = request.args.get("asset",     type=str)
+    start_md = request.args.get("start_day", type=str)
+    end_md   = request.args.get("end_day",   type=str)
+    if not asset or not start_md or not end_md:
+        return jsonify({"error":"asset, start_day e end_day obbligatori"}), 400
+
+    # 2) Scarica dati storici dal 2000 a oggi
+    df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
+    df = df.rename(columns={'Close': 'close'})
+
+    # 3) Calcola metriche passando month-day
+    result = calculate_misc_metrics(df, start_md, end_md)
+
+    # 4) Restituisci JSON
     return jsonify(result)
 
 # 7) Pattern stats endpoint aggregato
