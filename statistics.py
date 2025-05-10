@@ -247,7 +247,7 @@ def get_price_series(asset: str, year: int) -> dict:
         "dates":  [d.isoformat() for d in df["date"]],
         "prices": df["close"].tolist()
     }
-def get_seasonality(asset: str, years_back: int, start_day: str=None, end_day: str=None) -> dict:
+def get_seasonality(asset: str, years_back: int, start_day: str = None, end_day: str = None) -> dict:
     """
     Restituisce per ogni giorno MM-DD della finestra:
       - dates: lista di "MM-DD"
@@ -255,29 +255,32 @@ def get_seasonality(asset: str, years_back: int, start_day: str=None, end_day: s
     """
     from datetime import date
 
-    # 1) Calcola start_year/end_year
+    # 1) Calcola intervallo anni
     today = date.today()
     end_year = today.year - 1
     start_year = end_year - years_back + 1
 
-    # 2) Costruisci start_date / end_date
+    # 2) Costruisci date di fetch
     sd = start_day or "01-01"
     ed = end_day or "12-31"
     start_date = f"{start_year}-{sd}"
-    end_date = f"{end_year}-{ed}"
+    end_date   = f"{end_year}-{ed}"
 
-    # 3) Scarica tutta la serie
+    # 3) Scarica dati e preparazione
     df = fetch_price_data(asset, start_date, end_date)
-    # df deve avere colonne ['date','close']
+    # df ha indice DateTimeIndex e colonna 'Close'
 
-    # --- NUOVA LOGICA DI NORMALIZZAZIONE ---
-    # 3a) raggruppa per anno e normalizza ciascuna serie al primo valore
-    df['Year'] = df['date'].dt.year
+    # 3a) Porta l’indice in colonna per usare .dt
+    df = df.reset_index().rename(columns={'index': 'Date', 'Close': 'close'})
+    # ora df['Date'] è datetime e df['close'] è float
+
+    # 3b) Normalizza per anno
+    df['Year'] = df['Date'].dt.year
     df['close_norm'] = df.groupby('Year')['close'] \
-                         .transform(lambda serie: serie / serie.iloc[0])
+                         .transform(lambda s: s / s.iloc[0])
 
-    # 3b) media dei valori normalizzati per giorno-mese
-    df['month_day'] = df['date'].dt.strftime('%m-%d')
+    # 3c) Crea chiave mese-giorno e aggrega
+    df['month_day'] = df['Date'].dt.strftime('%m-%d')
     grouped = (
         df
         .groupby('month_day')['close_norm']
@@ -286,13 +289,14 @@ def get_seasonality(asset: str, years_back: int, start_day: str=None, end_day: s
         .rename(columns={'close_norm': 'average_norm'})
     )
 
-    # 4) Filtra sulla sotto-finestra selezionata
+    # 4) Applica filtro sulla sotto-finestra
     mask = (grouped['month_day'] >= sd) & (grouped['month_day'] <= ed)
     season_df = grouped.loc[mask].sort_values('month_day')
 
-    # 5) Restituisci JSON
+    # 5) Restituisci il JSON
     return {
         'dates':          season_df['month_day'].tolist(),
         'average_prices': season_df['average_norm'].round(6).tolist()
     }
+
 
