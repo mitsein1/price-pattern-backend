@@ -28,7 +28,7 @@ from statistics import (
 )
 
 # Assicuriamoci che get_data fornisca DataFrame con DateTimeIndex e colonna 'Close'
-from data_retrieval import get_historical_data, get_seasonal_window, filter_by_seasonal_window, get_data
+from data_retrieval import get_historical_data, get_seasonal_window, filter_by_seasonal_window, get_data, get_historical_records
 from fastapi import FastAPI, HTTPException, Query
 
 app = Flask(__name__)
@@ -156,8 +156,8 @@ def average_annual(ticker):
 @app.route('/api/price/<ticker>', methods=['GET'])
 def get_price(ticker):
     start_date = request.args.get('start_date', '2021-01-01')
-    end_date = request.args.get('end_date', '2025-01-01')
-    records = get_historical_data(ticker, start_date, end_date)
+    end_date   = request.args.get('end_date',   '2025-01-01')
+    records = get_historical_records(ticker, start_date, end_date)
     return jsonify(records)
 
 # 10) Basic statistics on history
