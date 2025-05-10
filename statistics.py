@@ -157,20 +157,39 @@ def get_pattern_returns(df: pd.DataFrame, start_day: int, end_day: int) -> pd.Da
     return pd.DataFrame(results)
 
 
+from data_retrieval import align_to_trading_days
+import pandas as pd
+
 def get_yearly_pattern_statistics(df: pd.DataFrame, start_day: int, end_day: int) -> list[dict]:
-    """Statistiche dettagliate per ogni anno: profitti, massimi rialzi e ribassi."""
+    """Statistiche dettagliate per ogni anno: profitti, massimi rialzi e ribassi,
+       con allineamento a giorni di mercato aperto."""
     stats = []
+
     for year in df.index.year.unique():
+        # Sottoserie per l'anno
         subset = df[df.index.year == year]
-        period = subset[(subset.index.dayofyear >= start_day) & (subset.index.dayofyear <= end_day)]
+
+        # Allinea start/end ai giorni di trading validi
+        aligned_start, aligned_end = align_to_trading_days(subset, start_day, end_day)
+        if aligned_start is None or aligned_end is None:
+            continue  # niente trading in quella finestra
+
+        # Filtra la finestra allineata
+        period = subset[(subset.index.dayofyear >= aligned_start) &
+                        (subset.index.dayofyear <= aligned_end)]
         if len(period) < 2:
             continue
+
+        # Prezzi di inizio e fine
         s = period['Close'].iloc[0]
         e = period['Close'].iloc[-1]
-        max_rise = round((period['Close'].max() / s - 1) * 100, 2)
-        max_drop = round((period['Close'].min() / s - 1) * 100, 2)
-        profit = round((e - s), 2)
+
+        # Calcoli statistici
+        max_rise   = round((period['Close'].max()  / s - 1) * 100, 2)
+        max_drop   = round((period['Close'].min()  / s - 1) * 100, 2)
+        profit     = round((e - s), 2)
         profit_pct = round((e / s - 1) * 100, 2)
+
         stats.append({
             'year':         int(year),
             'start_price':  s,
@@ -180,7 +199,9 @@ def get_yearly_pattern_statistics(df: pd.DataFrame, start_day: int, end_day: int
             'max_rise':     max_rise,
             'max_drop':     max_drop
         })
+
     return stats
+
 
 
 def get_profit_summary(df: pd.DataFrame, start_day: int, end_day: int) -> dict:
