@@ -210,7 +210,7 @@ def get_pattern_returns(
         results.append({'year': int(year), 'return': round(pct, 2)})
 
     return pd.DataFrame(results)
-}
+
 
 
 
@@ -299,7 +299,7 @@ def get_profit_summary(
         'total_profit':   round(total,   2),
         'average_profit': round(average, 2)
     }
-}
+
 
 
 def get_gains_losses(
