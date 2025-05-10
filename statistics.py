@@ -4,7 +4,7 @@ import yfinance as yf
 from data_retrieval import fetch_price_data, get_historical_data, align_to_trading_days
 import datetime
 #from statistics import get_price_series, calculate_cumulative_profit_per_year
-from datetime import date
+from datetime import date, datetime
 
 
 def calculate_average_annual_pattern(ticker: str, years_back: int | None = None) -> list[dict]:
@@ -333,25 +333,41 @@ def calculate_misc_metrics(
     df: pd.DataFrame,
     start_md: str,
     end_md: str,
+    years_back: int,
     risk_free_rate: float = 0.0
 ) -> dict:
     """
-    Calcola metriche aggiuntive su una finestra month-day per tutti gli anni:
+    Calcola metriche avanzate su una finestra month-day per gli ultimi years_back:
+
       - df: indice DatetimeIndex, colonna 'close'
       - start_md/end_md: stringhe "MM-DD"
-    """
+      - years_back: quanti anni indietro considerare
 
-    # Helper: converte "MM-DD" in day-of-year per un dato anno
+    Restituisce dict con:
+      trades, calendar_days, std_dev, sharpe_ratio, sortino_ratio,
+      volatility, current_streak, gains
+    """
+    # 1) Filtra ultimi N anni
+    latest_year = df.index.year.max()
+    cutoff = latest_year - years_back + 1
+    df = df[df.index.year >= cutoff]
+
+    # 2) Helper per MD → dayofyear
     def md_to_doy(md: str, year: int) -> int:
         dt = datetime.strptime(f"{year}-{md}", "%Y-%m-%d")
         return dt.timetuple().tm_yday
 
-    # Aggrega tutti i ritorni giornalieri anno per anno
     all_returns = []
+    trading_days = 0
     for year, group in df.groupby(df.index.year):
         sd = md_to_doy(start_md, year)
         ed = md_to_doy(end_md,   year)
-        window = group[(group.index.dayofyear >= sd) & (group.index.dayofyear <= ed)]
+        window = group[
+            (group.index.dayofyear >= sd) &
+            (group.index.dayofyear <= ed)
+        ]
+        # conta giorni di trading in finestra
+        trading_days += len(window)
         rets = window['close'].pct_change().dropna().tolist()
         all_returns.extend(rets)
 
@@ -362,7 +378,7 @@ def calculate_misc_metrics(
     downside = returns[returns < 0].std() if not returns[returns < 0].empty else 0
     sortino  = (returns.mean() - risk_free_rate) / downside if downside > 0 else 0
 
-    # Calcola lo streak di guadagni consecutivi
+    # calcolo streak
     max_streak = streak = 0
     for val in returns:
         streak = streak + 1 if val > 0 else 0
@@ -370,7 +386,7 @@ def calculate_misc_metrics(
 
     return {
         'trades':         count,
-        'calendar_days':  None,  # questo campo verrà calcolato in route
+        'calendar_days':  trading_days,
         'std_dev':        round(std_dev, 2),
         'sharpe_ratio':   round(sharpe, 2),
         'sortino_ratio':  round(sortino, 2),
