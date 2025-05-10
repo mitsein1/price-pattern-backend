@@ -3,7 +3,7 @@ import numpy as np
 import yfinance as yf
 from data_retrieval import fetch_price_data
 import datetime
-from statistics import get_price_series, calculate_cumulative_profit_per_year
+#from statistics import get_price_series, calculate_cumulative_profit_per_year
 
 
 
