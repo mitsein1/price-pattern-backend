@@ -44,12 +44,17 @@ def api_index():
 # 2) Pattern returns
 @app.route("/api/pattern-returns", methods=["GET"])
 def pattern_returns():
-    symbol = request.args.get("symbol")
-    start_day = int(request.args.get("start_day"))
-    end_day = int(request.args.get("end_day"))
-    df = get_data(symbol)
-    result = get_pattern_returns(df, start_day, end_day)
-    return jsonify(result.to_dict(orient="records"))
+    asset    = request.args.get("asset",     type=str)
+    start_md = request.args.get("start_day", type=str)
+    end_md   = request.args.get("end_day",   type=str)
+    if not asset or not start_md or not end_md:
+        return jsonify({"error":"asset, start_day e end_day obbligatori"}),400
+
+    df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
+    df = df.rename(columns={'Close':'close'})
+
+    result_df = get_pattern_returns(df, start_md, end_md)
+    return jsonify(result_df.to_dict(orient="records"))
 
 # 3) Yearly pattern statistics
 @app.route("/api/yearly-statistics", methods=["GET"])
@@ -64,22 +69,35 @@ def yearly_statistics():
 # 4) Profit summary
 @app.route("/api/profit-summary", methods=["GET"])
 def profit_summary():
-    symbol = request.args.get("symbol")
-    start_day = int(request.args.get("start_day"))
-    end_day = int(request.args.get("end_day"))
-    df = get_data(symbol)
-    result = get_profit_summary(df, start_day, end_day)
+    asset    = request.args.get("asset",     type=str)
+    start_md = request.args.get("start_day", type=str)
+    end_md   = request.args.get("end_day",   type=str)
+    if not asset or not start_md or not end_md:
+        return jsonify({"error":"asset, start_day e end_day obbligatori"}),400
+
+    # 1) Fetch storico completo
+    df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
+    df = df.rename(columns={'Close':'close'})
+
+    # 2) Calcola summary con month-day strings
+    result = get_profit_summary(df, start_md, end_md)
+
     return jsonify(result)
 
 # 5) Gains and losses count
-@app.route("/api/gains-losses", methods=["GET"])
-def gains_losses():
-    symbol = request.args.get("symbol")
-    start_day = int(request.args.get("start_day"))
-    end_day = int(request.args.get("end_day"))
-    df = get_data(symbol)
-    result = get_gains_losses(df, start_day, end_day)
-    return jsonify(result)
+@app.route("/api/cumulative-profit", methods=["GET"])
+def cumulative_profit():
+    asset    = request.args.get("asset",     type=str)
+    start_md = request.args.get("start_day", type=str)
+    end_md   = request.args.get("end_day",   type=str)
+    if not asset or not start_md or not end_md:
+        return jsonify({"error":"asset, start_day e end_day obbligatori"}),400
+
+    df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
+    df = df.rename(columns={'Close':'close'})
+
+    result_df = calculate_cumulative_profit_per_year(df, start_md, end_md)
+    return jsonify(result_df.to_dict(orient="records"))
 
 # 6) Misc metrics (Sharpe, volatility, etc.)
 @app.route("/api/misc-metrics", methods=["GET"])
