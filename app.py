@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import pandas as pd
-
+import datetime
 # Importiamo il modulo locale 'statistics' rinominandolo per non confliggere
 import statistics as stats_mod
 import visualization
@@ -16,7 +16,8 @@ from statistics import (
     get_profit_summary,
     get_gains_losses,
     calculate_misc_metrics,
-    get_seasonality
+    get_seasonality, get_price_series,
+    calculate_cumulative_profit_per_year,
 )
 
 # Assicuriamoci che get_data fornisca DataFrame con DateTimeIndex e colonna 'Close'
@@ -217,6 +218,29 @@ def debug_historical():
         "last_dates":  df.index[-3:].strftime("%Y-%m-%d").tolist() if len(df)>=3 else []
     })
 
+@app.route("/api/price-series", methods=["GET"])
+def price_series():
+    asset = request.args.get("asset")
+    year  = request.args.get("year", type=int)
+    if not asset or not year:
+        return jsonify({"error": "asset e year sono obbligatori"}), 400
+
+    data = get_price_series(asset, year)
+    return jsonify(data)
+
+
+@app.route("/api/cumulative-profit", methods=["GET"])
+def cumulative_profit():
+    asset    = request.args.get("asset")
+    start_dd = request.args.get("start_day", type=int)
+    end_dd   = request.args.get("end_day",   type=int)
+    if not asset or start_dd is None or end_dd is None:
+        return jsonify({"error": "asset, start_day e end_day obbligatori"}), 400
+
+    # Scarica dati completi dal 2000 ad oggi
+    df = get_historical_data(asset, "2000-01-01", datetime.date.today().isoformat())
+    result_df = calculate_cumulative_profit_per_year(df, start_dd, end_dd)
+    return jsonify(result_df.to_dict(orient="records"))
 
 
 if __name__ == '__main__':
