@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 from data_retrieval import fetch_price_data
+import datetime
+
 
 
 def calculate_average_annual_pattern(ticker: str, years_back: int | None = None) -> list[dict]:
@@ -269,3 +271,21 @@ def get_seasonality(
         'dates':          season_df['month_day'].tolist(),
         'average_prices': season_df['close'].round(6).tolist()
     }
+def get_price_series(asset: str, year: int) -> dict:
+    """
+    Ritorna le date e i prezzi di chiusura giornalieri di `asset` per l'anno `year`.
+    Se `year` è l'anno corrente, include fino a oggi; altrimenti fino al 31/12.
+    """
+    today = datetime.date.today()
+    start_date = f"{year}-01-01"
+    end_date = (
+        today.isoformat()
+        if year == today.year
+        else f"{year}-12-31"
+    )
+    df = fetch_price_data(asset, start_date, end_date)
+    return {
+        "dates":  [d.isoformat() for d in df["date"]],
+        "prices": df["close"].tolist()
+    }
+
