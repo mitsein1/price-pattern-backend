@@ -55,43 +55,34 @@ def pattern_returns():
     if not asset or not start_md or not end_md:
         return jsonify({"error":"asset, start_day e end_day obbligatori"}), 400
 
-    # scarica i dati dal 2000 ad oggi
+    # Scarica la serie e standardizza la colonna
     df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
     df = df.rename(columns={'Close':'close'})
 
-    # converto in numeri day-of-year
-    sd = md_to_doy(start_md)
-    ed = md_to_doy(end_md)
-
-    result_df = get_pattern_returns(df, sd, ed)
-    return jsonify(result_df.to_dict(orient="records"))
+    # Passa direttamente le stringhe MM-DD
+    result_df = get_pattern_returns(df, start_md, end_md)
+    return jsonify(result_df.to_dict(orient="records")))
 
 # 3) Yearly pattern statistics
 @app.route("/api/pattern-statistics", methods=["GET"])
 def pattern_statistics():
     # 1) Leggi i parametri
-    asset     = request.args.get("asset", type=str)
-    start_md  = request.args.get("start_day", type=str)  # es. "01-01"
-    end_md    = request.args.get("end_day",   type=str)  # es. "12-31"
+    asset     = request.args.get("asset",     type=str)
+    start_md  = request.args.get("start_day", type=str)  # es. "MM-DD"
+    end_md    = request.args.get("end_day",   type=str)  # es. "MM-DD"
     if not asset or not start_md or not end_md:
         return jsonify({"error": "asset, start_day e end_day obbligatori"}), 400
 
-    # 2) Converti MM-DD → giorno dell'anno
-    try:
-        sd = md_to_doy(start_md)
-        ed = md_to_doy(end_md)
-    except ValueError:
-        return jsonify({"error": "Formato start_day/end_day non valido, usa MM-DD"}), 400
-
-    # 3) Scarica la serie storica dal 2000 ad oggi
+    # 2) Scarica la serie storica dal 2000 ad oggi
     df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
     df = df.rename(columns={"Close": "close"})
 
-    # 4) Chiama la funzione di statistiche annuali
-    stats_list = get_yearly_pattern_statistics(df, sd, ed)
+    # 3) Chiama la funzione di statistiche annuali (internamente fa md_to_doy)
+    stats_list = get_yearly_pattern_statistics(df, start_md, end_md)
 
-    # 5) Restituisci il JSON
+    # 4) Restituisci il JSON
     return jsonify(stats_list)
+
 
 # 4) Profit summary
 @app.route("/api/profit-summary", methods=["GET"])
