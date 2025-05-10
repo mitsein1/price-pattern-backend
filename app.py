@@ -112,22 +112,13 @@ def misc_metrics():
     start_md   = request.args.get("start_day",  type=str)
     end_md     = request.args.get("end_day",    type=str)
 
-    # Validazione
     if not asset or not years_back or not start_md or not end_md:
         return jsonify({"error":"asset, years_back, start_day e end_day obbligatori"}),400
 
-    # 1) Scarica dati storici fino a oggi
     df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
     df = df.rename(columns={'Close':'close'})
 
-    # 2) Calcola metriche tecniche sui últimos years_back
     result = calculate_misc_metrics(df, start_md, end_md, years_back)
-
-    # 3) Aggiungi calendar_days dinamico
-    sd = md_to_doy(start_md, date.today().year)
-    ed = md_to_doy(end_md,   date.today().year)
-    result['calendar_days'] = ed - sd + 1
-
     return jsonify(result)
 
 # 7) Pattern stats endpoint aggregato
