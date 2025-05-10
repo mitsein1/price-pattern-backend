@@ -93,10 +93,15 @@ def cumulative_profit():
     if not asset or not start_md or not end_md:
         return jsonify({"error":"asset, start_day e end_day obbligatori"}),400
 
+    # Scarica dati storici dal 2000 fino a oggi
     df = get_historical_data(asset, "2000-01-01", date.today().isoformat())
+    # Standardizza sempre la colonna a 'close'
     df = df.rename(columns={'Close':'close'})
 
+    # Calcola il profitto cumulativo per ciascun anno nella finestra MM-DD
     result_df = calculate_cumulative_profit_per_year(df, start_md, end_md)
+
+    # Restituisci JSON
     return jsonify(result_df.to_dict(orient="records"))
 
 # 6) Misc metrics (Sharpe, volatility, etc.)
@@ -311,18 +316,7 @@ def price_series():
     return jsonify(data)
 
 
-@app.route("/api/cumulative-profit", methods=["GET"])
-def cumulative_profit():
-    asset    = request.args.get("asset")
-    start_dd = request.args.get("start_day", type=int)
-    end_dd   = request.args.get("end_day",   type=int)
-    if not asset or start_dd is None or end_dd is None:
-        return jsonify({"error": "asset, start_day e end_day obbligatori"}), 400
 
-    # Scarica dati completi dal 2000 ad oggi
-    df = get_historical_data(asset, "2000-01-01", datetime.date.today().isoformat())
-    result_df = calculate_cumulative_profit_per_year(df, start_dd, end_dd)
-    return jsonify(result_df.to_dict(orient="records"))
 @app.route("/api/pattern-statistics", methods=["GET"])
 def pattern_statistics():
     # 1. Estrai e valida i parametri
