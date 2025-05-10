@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from data_retrieval import fetch_price_data, get_historical_data
+from data_retrieval import fetch_price_data, get_historical_data, align_to_trading_days
 import datetime
 #from statistics import get_price_series, calculate_cumulative_profit_per_year
 from datetime import date
@@ -128,103 +128,206 @@ def seasonal_stats(df_window: pd.DataFrame) -> dict:
     }
 
 
-def calculate_cumulative_profit_per_year(df: pd.DataFrame, start_day: int, end_day: int) -> pd.DataFrame:
-    """Calcola il profitto cumulativo percentuale per ciascun anno dal giorno start_day al giorno end_day."""
+from datetime import datetime
+import pandas as pd
+
+def calculate_cumulative_profit_per_year(
+    df: pd.DataFrame,
+    start_md: str,
+    end_md: str
+) -> pd.DataFrame:
+    """
+    Calcola il profitto cumulativo percentuale per ciascun anno nella finestra month‑day:
+      - df: DatetimeIndex, colonna 'close'
+      - start_md/end_md: stringhe "MM-DD"
+    Restituisce DataFrame con colonne ['year','cumulative_profit'].
+    """
+
+    # Helper: "MM-DD" → day-of-year per un dato anno
+    def md_to_doy(md: str, year: int) -> int:
+        dt = datetime.strptime(f"{year}-{md}", "%Y-%m-%d")
+        return dt.timetuple().tm_yday
+
     results = []
-    for year in df.index.year.unique():
-        subset = df[df.index.year == year]
-        try:
-            s = subset[subset.index.dayofyear == start_day]['Close'].iloc[0]
-            e = subset[subset.index.dayofyear == end_day]['Close'].iloc[0]
-            profit = (e / s - 1) * 100
-            results.append({'year': int(year), 'cumulative_profit': round(profit, 2)})
-        except IndexError:
+    for year, group in df.groupby(df.index.year):
+        sd = md_to_doy(start_md, year)
+        ed = md_to_doy(end_md,   year)
+
+        subset = group[
+            (group.index.dayofyear >= sd) &
+            (group.index.dayofyear <= ed)
+        ]
+        if len(subset) < 2:
             continue
+
+        s = subset['close'].iloc[0]
+        e = subset['close'].iloc[-1]
+        profit = (e / s - 1) * 100
+        results.append({
+            'year':             int(year),
+            'cumulative_profit': round(profit, 2)
+        })
+
     return pd.DataFrame(results)
+}
 
 
-def get_pattern_returns(df: pd.DataFrame, start_day: int, end_day: int) -> pd.DataFrame:
-    """Ritorni annuali percentuali per ciascun anno dal giorno start_day al giorno end_day."""
+
+from datetime import datetime
+import pandas as pd
+
+def get_pattern_returns(
+    df: pd.DataFrame,
+    start_md: str,
+    end_md: str
+) -> pd.DataFrame:
+    """
+    Ritorni annuali percentuali per ciascun anno nella finestra month‑day:
+      - df: DatetimeIndex, colonna 'close'
+      - start_md/end_md: stringhe "MM-DD"
+    Restituisce DataFrame con colonne ['year','return'].
+    """
+
+    # Helper: "MM-DD" → day-of-year per un dato anno
+    def md_to_doy(md: str, year: int) -> int:
+        dt = datetime.strptime(f"{year}-{md}", "%Y-%m-%d")
+        return dt.timetuple().tm_yday
+
     results = []
-    for year in df.index.year.unique():
-        subset = df[df.index.year == year]
-        try:
-            s = subset[subset.index.dayofyear == start_day]['Close'].iloc[0]
-            e = subset[subset.index.dayofyear == end_day]['Close'].iloc[0]
-            results.append({'year': int(year), 'return': round((e / s - 1) * 100, 2)})
-        except IndexError:
+    for year, group in df.groupby(df.index.year):
+        sd = md_to_doy(start_md, year)
+        ed = md_to_doy(end_md,   year)
+
+        period = group[
+            (group.index.dayofyear >= sd) &
+            (group.index.dayofyear <= ed)
+        ]
+        if len(period) < 2:
             continue
+
+        s = period['close'].iloc[0]
+        e = period['close'].iloc[-1]
+        pct = (e / s - 1) * 100
+        results.append({'year': int(year), 'return': round(pct, 2)})
+
     return pd.DataFrame(results)
+}
+
 
 
 from data_retrieval import align_to_trading_days
 import pandas as pd
 
-def get_yearly_pattern_statistics(df: pd.DataFrame, start_day: int, end_day: int) -> list[dict]:
-    """Statistiche dettagliate per ogni anno: profitti, massimi rialzi e ribassi,
-       con allineamento a giorni di mercato aperto."""
+def get_yearly_pattern_statistics(
+    df: pd.DataFrame,
+    start_md: str,
+    end_md: str
+) -> list[dict]:
+    """
+    Statistiche dettagliate per ogni anno su una finestra month‑day:
+      - df: DatetimeIndex, colonna 'close' o 'Close'
+      - start_md/end_md: stringhe "MM-DD"
+    Restituisce lista di dict con year, start_price, end_price,
+    profit, profit_pct, max_rise, max_drop.
+    """
+
+    # Helper: converte "MM-DD" in day-of-year per un anno
+    def md_to_doy(md: str, year: int) -> int:
+        dt = datetime.strptime(f"{year}-{md}", "%Y-%m-%d")
+        return dt.timetuple().tm_yday
+
     stats = []
 
-    for year in df.index.year.unique():
-        # Sottoserie per l'anno
-        subset = df[df.index.year == year]
+    for year, group in df.groupby(df.index.year):
+        # 1) Calcola i day‑of‑year raw
+        sd_raw = md_to_doy(start_md, year)
+        ed_raw = md_to_doy(end_md,   year)
 
-        # Allinea start/end ai giorni di trading validi
-        aligned_start, aligned_end = align_to_trading_days(subset, start_day, end_day)
+        # 2) Allinea ai giorni di trading validi
+        aligned_start, aligned_end = align_to_trading_days(group, sd_raw, ed_raw)
         if aligned_start is None or aligned_end is None:
-            continue  # niente trading in quella finestra
+            continue
 
-        # Filtra la finestra allineata
-        period = subset[(subset.index.dayofyear >= aligned_start) &
-                        (subset.index.dayofyear <= aligned_end)]
+        # 3) Filtra la finestra allineata
+        period = group[
+            (group.index.dayofyear >= aligned_start) &
+            (group.index.dayofyear <= aligned_end)
+        ]
         if len(period) < 2:
             continue
 
-        # Prezzi di inizio e fine
-        s = period['Close'].iloc[0]
-        e = period['Close'].iloc[-1]
+        # 4) Estrai prezzi
+        s = period['close' if 'close' in period.columns else 'Close'].iloc[0]
+        e = period['close' if 'close' in period.columns else 'Close'].iloc[-1]
 
-        # Calcoli statistici
+        # 5) Calcola statistiche
         max_rise   = round((period['Close'].max()  / s - 1) * 100, 2)
         max_drop   = round((period['Close'].min()  / s - 1) * 100, 2)
         profit     = round((e - s), 2)
         profit_pct = round((e / s - 1) * 100, 2)
 
         stats.append({
-            'year':         int(year),
-            'start_price':  s,
-            'end_price':    e,
-            'profit':       profit,
-            'profit_pct':   profit_pct,
-            'max_rise':     max_rise,
-            'max_drop':     max_drop
+            'year':        int(year),
+            'start_price': round(s, 2),
+            'end_price':   round(e, 2),
+            'profit':      profit,
+            'profit_pct':  profit_pct,
+            'max_rise':    max_rise,
+            'max_drop':    max_drop
         })
 
     return stats
 
 
 
-def get_profit_summary(df: pd.DataFrame, start_day: int, end_day: int) -> dict:
-    """Riepilogo dei profitti totali e medi del pattern tra start_day ed end_day."""
-    returns = get_pattern_returns(df, start_day, end_day)
-    total = returns['return'].sum() if not returns.empty else 0
-    average = returns['return'].mean() if not returns.empty else 0
-    return {'total_profit': round(total, 2), 'average_profit': round(average, 2)}
+def get_profit_summary(
+    df: pd.DataFrame,
+    start_md: str,
+    end_md: str
+) -> dict:
+    """
+    Riepilogo dei profitti totali e medi del pattern tra start_md ed end_md:
+      - df: DatetimeIndex, colonna 'close'
+      - start_md/end_md: stringhe "MM-DD"
+    """
+    # Recupera i ritorni annuali percentuali
+    returns_df = get_pattern_returns(df, start_md, end_md)
+
+    total   = returns_df['return'].sum() if not returns_df.empty else 0
+    average = returns_df['return'].mean() if not returns_df.empty else 0
+
+    return {
+        'total_profit':   round(total,   2),
+        'average_profit': round(average, 2)
+    }
+}
 
 
-def get_gains_losses(df: pd.DataFrame, start_day: int, end_day: int) -> dict:
-    """Conta guadagni e perdite, percentuali medie e massimi."""
-    returns = get_pattern_returns(df, start_day, end_day)
-    gains = returns[returns['return'] > 0]
-    losses = returns[returns['return'] < 0]
+def get_gains_losses(
+    df: pd.DataFrame,
+    start_md: str,
+    end_md: str
+) -> dict:
+    """
+    Conta guadagni e perdite sulla finestra month‑day per ogni anno:
+      - df: DatetimeIndex, colonna 'close'
+      - start_md/end_md: stringhe "MM-DD"
+    """
+    # Ottieni un DataFrame con colonne ['year','return']
+    returns_df = get_pattern_returns(df, start_md, end_md)
+
+    gains  = returns_df[returns_df['return'] >  0]['return']
+    losses = returns_df[returns_df['return'] <  0]['return']
+
     return {
         'gains':     int(len(gains)),
         'losses':    int(len(losses)),
-        'gain_pct':  round(gains['return'].mean(), 2) if not gains.empty else 0,
-        'loss_pct':  round(losses['return'].mean(), 2) if not losses.empty else 0,
-        'max_gain':  round(gains['return'].max(), 2) if not gains.empty else 0,
-        'max_loss':  round(losses['return'].min(), 2) if not losses.empty else 0
+        'gain_pct':  round(gains.mean(), 2)  if not gains.empty else 0,
+        'loss_pct':  round(losses.mean(), 2) if not losses.empty else 0,
+        'max_gain':  round(gains.max(), 2)   if not gains.empty else 0,
+        'max_loss':  round(losses.min(), 2)  if not losses.empty else 0
     }
+
 
 
 def calculate_misc_metrics(
