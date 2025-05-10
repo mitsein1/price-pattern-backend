@@ -247,6 +247,7 @@ def get_price_series(asset: str, year: int) -> dict:
         "dates":  [d.isoformat() for d in df["date"]],
         "prices": df["close"].tolist()
     }
+
 def get_seasonality(asset: str, years_back: int, start_day: str = None, end_day: str = None) -> dict:
     """
     Restituisce per ogni giorno MM-DD della finestra:
@@ -263,12 +264,16 @@ def get_seasonality(asset: str, years_back: int, start_day: str = None, end_day:
 
     # 2) Date di fetch
     sd = start_day or "01-01"
-    ed = end_day or "12-31"
+    ed = end_day   or "12-31"
     start_date = f"{start_year}-{sd}"
-    end_date = f"{end_year}-{ed}"
+    end_date   = f"{end_year}-{ed}"
 
     # 3) Scarica dati (indice DatetimeIndex, colonna 'close')
     df = fetch_price_data(asset, start_date, end_date)
+
+    # --- DEBUG: verifica righe e primi indici ---
+    print(f"[DEBUG] fetched {len(df)} rows from {start_date} to {end_date}")
+    print(f"[DEBUG] first dates: {list(df.index[:5])}")
 
     # 3a) Assicuriamoci che l’indice sia datetime
     df.index = pd.to_datetime(df.index)
